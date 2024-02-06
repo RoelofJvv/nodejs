@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node.js Server & Riot API Request</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: auto; /* Use the full viewport height */
+            margin: 0;
+            overflow: auto;
+        }
+        ul {
+            list-style: none;
+        }
+        li {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        img {
+            width: 48px; /* Adjust the image size as needed */
+            height: 48px; /* Adjust the image size as needed */
+            margin-right: 10px;
+        }
+
+        #loadingSpinner {
+            display: none;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Node.js Server & Riot API Request</h1>
+    <div>
+        <label for="summonerName">Summoner Name:</label>
+        <input type="text" id="summonerName" placeholder="Enter summoner name">
+    </div>
+    <div>
+        <label for="spinnerValue">Number of Matches:</label>
+        <input type="number" id="spinnerValue" min="0" max="20" value="0">
+    </div>
+    <div>
+        <label for="gameMode">Game Mode:</label>
+        <select id="gameMode">
+            <option value="400">Normal</option>
+            <option value="420">Ranked Solo/Duo</option>
+            <option value="440">Ranked Flex</option>
+        </select>
+    </div>
+    <button id="requestButton">Make Riot API Request</button>
+    <div id="loadingSpinner"></div>
+    <div>
+        <h2>Rank Information</h2>
+        <div id="rankInfo"></div>
+    </div>
+    <div>
+        <h2>Top 3 Champions</h2>
+        <ul id="championList"></ul>
+    </div>
+    <div>
+        <h2>Last match</h2>
+        <ul id="lastMatch"></ul>
+    </div>
+    <script>
+        const http = require('http');
+        const PORT = 3000;
+
+        const server = http.createServer((req, res) => {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/plain');
+          res.end('Hello World!');
+        });
+
+        server.listen(PORT, () => {
+          console.log(`Server running at http://localhost:${PORT}/`);
+        });
+
+        document.getElementById('requestButton').addEventListener('click', makeRiotAPIRequest);
+        document.getElementById('summonerName').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                makeRiotAPIRequest();
+            }
+        });
+
+        function showLoadingSpinner() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+
+        function hideLoadingSpinner() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
+        async function makeRiotAPIRequest() {
+            // Show loading spinner
+            showLoadingSpinner();
+
+            const summonerName = document.getElementById('summonerName').value;
+            const spinnerValue = document.getElementById('spinnerValue').value;
+            const gameMode = document.getElementById('gameMode').value;
+            const versionResponse = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+            const versionData = await versionResponse.json();
+            const gameVersion = versionData[0];
+
+            // Send the summoner name to the server for processing
+            fetch(`/riot-api?summonerName=${summonerName}&spinnerValue=${spinnerValue}&gameMode=${gameMode}`)
+                .then(response => response.json())
+                .then(data => {
+                    // The server will send back the rank and champion data
+                    const rankInfoElement = document.getElementById('rankInfo');
+                    const winrate = data.winrate;
+                    var rank = data.rankTier;
+                    rank = rank.toLowerCase().replace(/^\w/, c => c.toUpperCase());
+                    const championList = document.getElementById('championList');
+
+                    // Display rank information
+                    rankInfoElement.innerHTML = 'Rank: ' + rank + '<br>Winrate: ' + winrate + '%';
+                    const rankIcon = document.createElement('img');
+                    rankIcon.src = `/Rank=${rank}.png`;
+                    rankInfoElement.appendChild(rankIcon);
+
+                    // Clear previous champion list
+                    championList.innerHTML = '';
+
+                    // Display top 3 champions
+                    data.championList.forEach(champion => {
+                        const championItem = document.createElement('li');
+
+                        const championImage = document.createElement('img');
+                        championImage.src = `https://ddragon.leagueoflegends.com/cdn/${gameVersion}/img/champion/${champion.championName}.png`;
+                        championImage.alt = champion.championName;
+                        championItem.appendChild(championImage);
+
+                        const championDetails = document.createElement('div');
+                        championDetails.textContent = `Champion: ${champion.championName}, Points: ${champion.championPoints}, Level: ${champion.championLevel}`;
+                        championItem.appendChild(championDetails);
+
+                        championList.appendChild(championItem);
+                    });
+
+                    const lastMatchElement = document.getElementById('lastMatch');
+                    lastMatchElement.innerHTML = '';
+
+                    // Display last matches
+                    const lastMatch = document.getElementById('lastMatch');
+                    lastMatch.innerHTML = '';
+
+                    data.lastMatches.forEach(match => {
+                        const matchList = document.createElement('div');
+                        const matchItem = document.createElement('li');
+
+                        // Set text content for matchItem
+                        matchItem.textContent = `Champion: ${match.championName}, Stats: Kills: ${match.kills || 0} Deaths: ${match.deaths} Assists: ${match.assists} CS: ${match.cs}`;
+
+                        // Append matchItem to matchList
+                        matchList.appendChild(matchItem);
+
+                        // Define a function to create item image elements
+                        const createItemImage = (item) => {
+                            if (item !== 0 && item) {
+                                const itemImage = document.createElement('img');
+                                itemImage.src = `https://ddragon.leagueoflegends.com/cdn/${gameVersion}/img/item/${item}.png`;
+                                itemImage.alt = item;
+
+                                // Set a 1x1 transparent pixel as a fallback
+                                itemImage.onerror = function () {
+                                    itemImage.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8AAAAJ0FTTAAAAJIAAACTAXpCZAAAAABJRU5ErkJggg==';
+                                };
+
+                                matchList.appendChild(itemImage);
+                            }
+                        };
+
+                        // Create item image elements
+                        createItemImage(match.item0);
+                        createItemImage(match.item1);
+                        createItemImage(match.item2);
+                        createItemImage(match.item3);
+                        createItemImage(match.item4);
+                        createItemImage(match.item5);
+
+                        // Append matchList to wherever you want in your document
+                        // For example, assuming lastMatchElement is the container element
+                        lastMatchElement.appendChild(matchList);
+                    });
+
+                    // Hide loading spinner after the data is ready
+                    hideLoadingSpinner();
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    // Hide loading spinner in case of an error
+                    hideLoadingSpinner();
+                });
+        }
+    </script>
+</body>
+</html>
