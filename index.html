@@ -1,9 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Node.js Server & Riot API Request</title>
+    <title>Riot API Request</title>
     <style>
         body {
             display: flex;
@@ -46,10 +44,14 @@
     </style>
 </head>
 <body>
-    <h1>Node.js Server & Riot API Request</h1>
+    <h1>Riot API Request</h1>
     <div>
         <label for="summonerName">Summoner Name:</label>
         <input type="text" id="summonerName" placeholder="Enter summoner name">
+    </div>
+    <div>
+        <label for="tagLine">TagLine #:</label>
+        <input type="text" id="tagLine" placeholder="Enter tagline">
     </div>
     <div>
         <label for="spinnerValue">Number of Matches:</label>
@@ -78,18 +80,7 @@
         <ul id="lastMatch"></ul>
     </div>
     <script>
-        const http = require('http');
-        const PORT = 3000;
-
-        const server = http.createServer((req, res) => {
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'text/plain');
-          res.end('Hello World!');
-        });
-
-        server.listen(PORT, () => {
-          console.log(`Server running at http://localhost:${PORT}/`);
-        });
+        var version = 0;
 
         document.getElementById('requestButton').addEventListener('click', makeRiotAPIRequest);
         document.getElementById('summonerName').addEventListener('keyup', function(event) {
@@ -106,22 +97,23 @@
             document.getElementById('loadingSpinner').style.display = 'none';
         }
 
-        async function makeRiotAPIRequest() {
+        function makeRiotAPIRequest() {
             // Show loading spinner
             showLoadingSpinner();
 
             const summonerName = document.getElementById('summonerName').value;
+            const tagLine = document.getElementById('tagLine').value;
             const spinnerValue = document.getElementById('spinnerValue').value;
             const gameMode = document.getElementById('gameMode').value;
-            const versionResponse = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
-            const versionData = await versionResponse.json();
-            const gameVersion = versionData[0];
+
+
 
             // Send the summoner name to the server for processing
-            fetch(`/riot-api?summonerName=${summonerName}&spinnerValue=${spinnerValue}&gameMode=${gameMode}`)
+            fetch(`/riot-api?summonerName=${summonerName}&tagLine${tagLine}&spinnerValue=${spinnerValue}&gameMode=${gameMode}`)
                 .then(response => response.json())
                 .then(data => {
                     // The server will send back the rank and champion data
+                    version = data.gameVersion;
                     const rankInfoElement = document.getElementById('rankInfo');
                     const winrate = data.winrate;
                     var rank = data.rankTier;
@@ -142,7 +134,7 @@
                         const championItem = document.createElement('li');
 
                         const championImage = document.createElement('img');
-                        championImage.src = `https://ddragon.leagueoflegends.com/cdn/${gameVersion}/img/champion/${champion.championName}.png`;
+                        championImage.src = `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champion.championName}.png`;
                         championImage.alt = champion.championName;
                         championItem.appendChild(championImage);
 
@@ -170,21 +162,24 @@
                         // Append matchItem to matchList
                         matchList.appendChild(matchItem);
 
+                        
                         // Define a function to create item image elements
-                        const createItemImage = (item) => {
-                            if (item !== 0 && item) {
-                                const itemImage = document.createElement('img');
-                                itemImage.src = `https://ddragon.leagueoflegends.com/cdn/${gameVersion}/img/item/${item}.png`;
-                                itemImage.alt = item;
+const createItemImage = (item) => {
+    if (item !== 0 && item) {
+    const itemImage = document.createElement('img');
+    itemImage.src = `https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${item}.png`;
+    itemImage.alt = item;
 
-                                // Set a 1x1 transparent pixel as a fallback
-                                itemImage.onerror = function () {
-                                    itemImage.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8AAAAJ0FTTAAAAJIAAACTAXpCZAAAAABJRU5ErkJggg==';
-                                };
+    // Set a 1x1 transparent pixel as a fallback
+    itemImage.onerror = function () {
+        itemImage.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8AAAAJ0FTTAAAAJIAAACTAXpCZAAAAABJRU5ErkJggg==';
+    };
 
-                                matchList.appendChild(itemImage);
-                            }
-                        };
+    matchList.appendChild(itemImage);
+}
+};
+
+
 
                         // Create item image elements
                         createItemImage(match.item0);
