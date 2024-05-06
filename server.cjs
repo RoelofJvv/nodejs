@@ -3,8 +3,9 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const helmet = require('helmet');
-const port = process.env.RAILWAY_PORT || 3000;
+const port = 3000;
 const apiKey = 'RGAPI-19840061-d645-4c33-a52c-a98a8c117b51';
+var version = 0;
 
 app.use(
   helmet.contentSecurityPolicy({
@@ -24,11 +25,21 @@ app.get('/', (req, res) => {
 
 app.get('/riot-api', async (req, res) => {
   const summonerName = req.query.summonerName;
+  const tagLine = req.query.tagLine;
   const spinnerValue = req.query.spinnerValue;
   const gameMode = req.query.gameMode;
 
   try {
-    const response = await axios.get(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/${summonerName}`, {
+    const response2 = await axios.get(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${summonerName}/001`, {
+      headers: {
+        'X-Riot-Token': apiKey
+      }
+    });
+
+
+    const summonerData2 = response2.data;
+
+    const response = await axios.get(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${summonerData2.puuid}`, {
       headers: {
         'X-Riot-Token': apiKey
       }
@@ -49,6 +60,7 @@ app.get('/riot-api', async (req, res) => {
     // Fetch the current game version
     const versionResponse = await axios.get('https://ddragon.leagueoflegends.com/api/versions.json');
     const gameVersion = versionResponse.data[0]; // Assuming the first version is the current one
+    version = gameVersion;
 
 
     // Fetch champion mastery data
@@ -57,6 +69,8 @@ app.get('/riot-api', async (req, res) => {
     'X-Riot-Token': apiKey
   }
 });
+
+
 
 const championList = championMasteryResponse.data;
 
